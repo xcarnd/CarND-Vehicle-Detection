@@ -34,14 +34,17 @@ class Classifier(object):
     def save(self, name):
         output_file = name + ".p"
         with open(output_file, 'wb') as f:
-            pickle.dump(self, f)
+            pickle.dump(self.clf, f)
             print("Classifier saved at {}".format(output_file))
 
     @staticmethod
     def restore(name):
+        classifier = Classifier()
         input_file = name + ".p"
         with open(input_file, 'rb') as f:
-            return pickle.load(f)
+            clf = pickle.load(f)
+        classifier.clf = clf
+        return classifier
 
 
 def train_classifier(name='model'):
