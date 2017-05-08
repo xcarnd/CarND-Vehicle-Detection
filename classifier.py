@@ -44,7 +44,7 @@ class Classifier(object):
             return pickle.load(f)
 
 
-if __name__ == '__main__':
+def train_classifier(name='model'):
     vehicles = glob.glob("dataset/vehicles/*/*.png")
     non_vehicles = glob.glob("dataset/non-vehicles/*/*.png")
     all_features = []
@@ -82,4 +82,8 @@ if __name__ == '__main__':
     print("Shape of testing input: ", test_input.shape)
     print("Number of training input features: ", len(test_label))
     print(classifier.score(test_input, test_label))
-    classifier.save('model')
+    classifier.save(name)
+    return classifier
+
+if __name__ == '__main__':
+    train_classifier()
