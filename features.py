@@ -3,7 +3,7 @@
 import numpy as np
 from skimage.feature import hog
 from sklearn.preprocessing import StandardScaler
-import cv2
+import utils
 
 
 def get_color_hist(img, nbins=32, bins_range=(0, 256)):
@@ -46,14 +46,7 @@ def get_hog(img, orientations=9, pixels_per_cell=8, cells_per_block=2, channel=-
 def get_feature_vector(img, color_space='RGB'):
     """Returns features of image as a 1D vector.
     """
-    if color_space == 'RGB':
-        image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    elif color_space == 'HLS':
-        image = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
-    elif color_space == 'HSV':
-        image = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    else:
-        raise Exception("{} not supported yet.".format(color_space))
+    image = utils.convert_color_space(img, color_space)
 
     hog_features = get_hog(image)
     result = np.concatenate((hog_features.ravel(),))
@@ -61,10 +54,16 @@ def get_feature_vector(img, color_space='RGB'):
     return result
 
 
-def normalize_features(features):
+def get_feature_normalizer(fitting_features):
+    """Returns a feature vector normalizer by fitting against the provided features.
+    """
+    scaler = StandardScaler()
+    scaler.fit(fitting_features)
+    return scaler
+
+
+def normalize_features(scaler, features):
     """Normalize given features.
     """
     print("Normalizing features")
-    scaler = StandardScaler()
-    scaler.fit(features)
     return scaler.transform(features)
