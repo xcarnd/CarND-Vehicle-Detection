@@ -8,6 +8,7 @@ import cv2
 from tqdm import tqdm
 import features as f
 import numpy as np
+import utils
 
 
 class Classifier(object):
@@ -19,7 +20,7 @@ class Classifier(object):
         self.scaler = scaler
 
     def fit(self, features, labels):
-        svc = svm.SVC(kernel='linear', C=1.0)
+        svc = svm.LinearSVC(C=1.0)
         # parameters = {'C': [1, 10]}
         # self.clf = GridSearchCV(svc, parameters, verbose=2, n_jobs=2)
         self.clf = svc
@@ -35,9 +36,9 @@ class Classifier(object):
             features = features.reshape(1, -1)
         features = self.scaler.transform(features)
         if single_sample:
-            return self.clf.predict(features)[0]
+            return self.clf.predict(features).astype(np.int)[0]
         else:
-            return self.clf.predict(features)
+            return self.clf.predict(features).astype(np.int)
 
     def score(self, features, labels):
         assert self.clf is not None, "Train the classifier first."
@@ -60,46 +61,46 @@ class Classifier(object):
         return classifier
 
 
-def read_single_samples(path, color_space):
+def read_single_sample(path, color_space='YCrCb'):
     image = cv2.imread(path)
     if image is None:
         return None
-    feature_vector = f.get_feature_vector(image, color_space=color_space)
+    image = utils.convert_color_space(image, color_space=color_space)
+    feature_vector = f.get_feature_vector(image, hog_pixels_per_cell=8, hog_cells_per_block=2, hog_channel=-1)
     return feature_vector
 
 
-def read_samples():
+def read_samples(color_space='YCrCb'):
     vehicles = glob.glob("dataset/vehicles/*/*.png")
     non_vehicles = glob.glob("dataset/non-vehicles/*/*.png")
     all_features = []
     num_vehicles = 0
     num_non_vehicles = 0
-    color_space = 'HSV'
 
     print("Reading dataset of vehicles")
     for v in tqdm(vehicles):
-        feature_vector = read_single_samples(v, color_space=color_space)
+        feature_vector = read_single_sample(v, color_space=color_space)
         if feature_vector is not None:
             all_features.append(feature_vector)
             num_vehicles += 1
 
     print("Reading dataset of non-vehicles")
     for v in tqdm(non_vehicles):
-        feature_vector = read_single_samples(v, color_space=color_space)
+        feature_vector = read_single_sample(v, color_space=color_space)
         if feature_vector is not None:
             all_features.append(feature_vector)
             num_non_vehicles += 1
 
-    all_features = np.array(all_features)
+    all_features = np.stack(all_features, axis=0)
     all_labels = np.concatenate((np.ones(num_vehicles), np.zeros(num_non_vehicles)))
 
     return all_features, all_labels
 
 
-def train_classifier(all_features, all_labels, name='model'):
-    train_input, test_input, train_label, test_label = train_test_split(all_features, all_labels, test_size=0.2)
+def train_classifier(features, labels, name='model'):
+    train_input, test_input, train_label, test_label = train_test_split(features, labels, test_size=0.2)
 
-    features_scaler = f.get_feature_normalizer(train_input.astype(np.float64))
+    features_scaler = f.get_feature_normalizer(features.astype(np.float64))
 
     print("Shape of training input: ", train_input.shape)
     print("Number of training input features: ", len(train_label))
@@ -111,19 +112,18 @@ def train_classifier(all_features, all_labels, name='model'):
     print("Shape of testing input: ", test_input.shape)
     print("Number of training input features: ", len(test_label))
     print(test_input.shape)
-    print("Accuracy", classifier.score(test_input, test_label))
+    print("Accuracy: ", classifier.score(test_input, test_label))
     classifier.save(name)
     return classifier
 
 
 if __name__ == '__main__':
-    features, labels = read_samples()
-    train_classifier(features, labels)
+    color_space = 'YCrCb'
+    sample_features, sample_labels = read_samples(color_space=color_space)
+    train_classifier(sample_features, sample_labels)
     print("Restore classifier and scoring against the whole data set.")
     clf = Classifier.restore('model')
-    fv = read_single_samples("./test1.png", color_space='HSV')
-    print(fv.reshape(1, -1))
-    print(clf.scaler.transform(fv.reshape(1, -1)))
+    fv = read_single_sample("./test2.png", color_space=color_space)
     print(clf.predict(fv))
 
     # print("Accuracy:", clf.score(features, labels))
