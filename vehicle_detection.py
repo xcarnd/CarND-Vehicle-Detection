@@ -64,6 +64,12 @@ class Pipeline(object):
                                        (int(search_region.shape[1] / scale), int(search_region.shape[0] / scale)))
             # print("Scaled shape of search region: ", search_region.shape)
 
+        # cars looked smaller and closer to the horizon. so I can limit the searching area
+        # for smaller scale (which is used for searching for "small" car) to the upper part
+        # of the search region
+        crop = min((0.5 * scale, 1))
+        search_region = search_region[:int(crop*search_region.shape[0]), :]
+
         # parameters tuning:
         # number of pixels per cell when extracting HOG features
         pixels_per_cell = 8
@@ -158,11 +164,14 @@ def constructor_pipeline_from_classifier(pickle_file_name):
 
 
 if __name__ == '__main__':
-    import os
-    frames = os.listdir("debug")
-    for frame in frames:
-        test_img = cv2.imread('debug/{}'.format(frame))
-        pipeline = constructor_pipeline_from_classifier("clf.p")
-        result = pipeline.search_cars(test_img, region_of_interest=((0, 400), (1280, 656)))
-        cv2.imwrite('debug2/{}'.format(frame), result)
-
+    pipeline = constructor_pipeline_from_classifier("clf.p")
+    # import os
+    # frames = os.listdir("debug")
+    # for frame in frames:
+    #     test_img = cv2.imread('debug/{}'.format(frame))
+    #     result = pipeline.search_cars(test_img, region_of_interest=((0, 400), (1280, 656)))
+    #     cv2.imwrite('debug2/{}'.format(frame), result)
+    test_img = cv2.imread('test_images/test6.jpg')
+    result = pipeline.search_cars(test_img, region_of_interest=((0, 400), (1280, 656)))
+    plt.imshow(result)
+    plt.show()
