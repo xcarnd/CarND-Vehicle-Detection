@@ -16,17 +16,28 @@ class Pipeline(object):
     def __init__(self, classifier, scaler):
         self.classifier = classifier
         self.scaler = scaler
-        self._last_heapmap = []
+        self._last_heatmaps = []
 
-    def search_cars(self, image, region_of_interest=None):
+    def search_cars(self, image, region_of_interest=None, sequence=True):
         heatmap = np.zeros(image.shape[:2], dtype=np.float)
         for scale in self.searching_scales:
             boxes = self.search_for_matches(image, region_of_interest=region_of_interest, scale=scale)
             hm = build_heatmap((image.shape[1], image.shape[0]), boxes)
             heatmap += hm
 
-        max_val = np.max(heatmap)
-        scaled = heatmap * 255 / max_val
+        if sequence:
+            self._last_heatmaps.append(heatmap)
+            if len(self._last_heatmaps) > 5:
+                del self._last_heatmaps[0]
+            accumulated_heatmap = np.sum(self._last_heatmaps, axis=0, keepdims=False)
+            accumulated_heatmap = apply_heatmap_threshold(accumulated_heatmap, 20)
+
+            accumulated_heatmap = np.clip(accumulated_heatmap, a_min=0, a_max=255)
+        else:
+            accumulated_heatmap = heatmap
+
+        max_val = np.max(accumulated_heatmap)
+        scaled = accumulated_heatmap * 255 / max_val
         return np.stack((scaled, scaled, scaled), axis=-1).astype(np.uint8)
         # bboxes = label_heatmap_and_get_bounding_box(heatmap)
         # img = get_image_with_boxes(test_img, bboxes)
@@ -134,6 +145,11 @@ def build_heatmap(size, boxes):
     return heatmap
 
 
+def apply_heatmap_threshold(heatmap, threshold=0):
+    heatmap[heatmap < threshold] = 0
+    return heatmap
+
+
 def label_heatmap_and_get_bounding_box(heatmap):
     bboxes = []
     labels = label(heatmap)
@@ -155,7 +171,7 @@ def get_image_with_boxes(image, boxes, color=(255, 0, 0), thickness=3):
 
 
 def constructor_pipeline_from_classifier(pickle_file_name):
-    with open('clf.p', 'rb') as clf_data_file:
+    with open(pickle_file_name, 'rb') as clf_data_file:
         clf_data = pickle.load(clf_data_file)
         clf = clf_data['classifier']
         scaler = clf_data['scaler']
@@ -165,13 +181,23 @@ def constructor_pipeline_from_classifier(pickle_file_name):
 
 if __name__ == '__main__':
     pipeline = constructor_pipeline_from_classifier("clf.p")
+    # # import os
+    # # frames = os.listdir("debug")
+    # # for frame in frames:
+    # #     test_img = cv2.imread('debug/{}'.format(frame))
+    # #     result = pipeline.search_cars(test_img, region_of_interest=((0, 400), (1280, 656)))
+    # #     cv2.imwrite('debug2/{}'.format(frame), result)
+    # test_img = cv2.imread('debug/frame_020.jpg')
+    # # result = pipeline.search_cars(test_img, region_of_interest=((0, 400), (1280, 656)), sequence=False)
+    # boxes, result = pipeline.search_for_matches(test_img, region_of_interest=((0, 400), (1280, 656)), visualize=True)
+    # plt.imshow(result)
+    # plt.show()
+
     # import os
     # frames = os.listdir("debug")
     # for frame in frames:
     #     test_img = cv2.imread('debug/{}'.format(frame))
-    #     result = pipeline.search_cars(test_img, region_of_interest=((0, 400), (1280, 656)))
-    #     cv2.imwrite('debug2/{}'.format(frame), result)
-    test_img = cv2.imread('test_images/test6.jpg')
-    result = pipeline.search_cars(test_img, region_of_interest=((0, 400), (1280, 656)))
-    plt.imshow(result)
-    plt.show()
+    #     boxes, result = pipeline.search_for_matches(test_img, region_of_interest=((0, 400), (1280, 656)),
+    #                                                 visualize=True, scale=2.0)
+    #     plt.imshow(result)
+    #     plt.show()
