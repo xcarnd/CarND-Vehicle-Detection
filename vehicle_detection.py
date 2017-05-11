@@ -11,9 +11,25 @@ from scipy.ndimage.measurements import label
 
 
 class Pipeline(object):
+    searching_scales = [1.0, 1.5, 2.0]
+
     def __init__(self, classifier, scaler):
         self.classifier = classifier
         self.scaler = scaler
+        self._last_heapmap = []
+
+    def search_cars(self, image, region_of_interest=None):
+        heatmap = np.zeros(image.shape[:2], dtype=np.float)
+        for scale in self.searching_scales:
+            boxes = self.search_for_matches(image, region_of_interest=region_of_interest, scale=scale)
+            hm = build_heatmap((image.shape[1], image.shape[0]), boxes)
+            heatmap += hm
+
+        max_val = np.max(heatmap)
+        scaled = heatmap * 255 / max_val
+        return np.stack((scaled, scaled, scaled), axis=-1).astype(np.uint8)
+        # bboxes = label_heatmap_and_get_bounding_box(heatmap)
+        # img = get_image_with_boxes(test_img, bboxes)
 
     def search_for_matches(self, image, region_of_interest=None, scale=1.0, visualize=False):
         """Apply sliding window search on the given image.
@@ -40,13 +56,13 @@ class Pipeline(object):
 
         search_region = image[y_start:y_stop, x_start:x_stop, :]
         search_region = utils.convert_color_space(search_region, s.color_space)
-        print("Shape of search region: ", search_region.shape)
+        # print("Shape of search region: ", search_region.shape)
 
         # scaling the input if necessary
         if scale != 1:
             search_region = cv2.resize(search_region,
                                        (int(search_region.shape[1] / scale), int(search_region.shape[0] / scale)))
-            print("Scaled shape of search region: ", search_region.shape)
+            # print("Scaled shape of search region: ", search_region.shape)
 
         # parameters tuning:
         # number of pixels per cell when extracting HOG features
@@ -105,11 +121,10 @@ class Pipeline(object):
             return rects
 
 
-def build_heatmap(size, boxes, threshold=0):
+def build_heatmap(size, boxes):
     heatmap = np.zeros((size[1], size[0]))
     for ((tl_x, tl_y), (br_x, br_y)) in boxes:
         heatmap[tl_y:br_y, tl_x:br_x] += 1
-    heatmap[heatmap < threshold] = 0
     return heatmap
 
 
@@ -133,31 +148,21 @@ def get_image_with_boxes(image, boxes, color=(255, 0, 0), thickness=3):
     return img
 
 
-if __name__ == '__main__':
+def constructor_pipeline_from_classifier(pickle_file_name):
     with open('clf.p', 'rb') as clf_data_file:
         clf_data = pickle.load(clf_data_file)
         clf = clf_data['classifier']
         scaler = clf_data['scaler']
         clf_data_file.close()
+    return Pipeline(clf, scaler)
 
-    test_img = cv2.imread('test_images/test5.jpg')
 
-    pipeline = Pipeline(clf, scaler)
+if __name__ == '__main__':
+    import os
+    frames = os.listdir("debug")
+    for frame in frames:
+        test_img = cv2.imread('debug/{}'.format(frame))
+        pipeline = constructor_pipeline_from_classifier("clf.p")
+        result = pipeline.search_cars(test_img, region_of_interest=((0, 400), (1280, 656)))
+        cv2.imwrite('debug2/{}'.format(frame), result)
 
-    scales = [1.0, 1.5, 2.0]
-    thresholds = [4, 2, 2]
-    heatmap = np.zeros(test_img.shape[:2])
-    for i in range(len(scales)):
-        scale = scales[i]
-        thresh = thresholds[i]
-        boxes, img = pipeline.search_for_matches(test_img, region_of_interest=((0, 400), (1280, 656)), scale=scale,
-                                                 visualize=True)
-        plt.imshow(img)
-        plt.show()
-        hm = build_heatmap((test_img.shape[1], test_img.shape[0]), boxes, threshold=thresh)
-        heatmap += hm
-    bboxes = label_heatmap_and_get_bounding_box(heatmap)
-    img = get_image_with_boxes(test_img, bboxes)
-    img = utils.convert_color_space(img, 'RGB')
-    plt.imshow(img)
-    plt.show()
