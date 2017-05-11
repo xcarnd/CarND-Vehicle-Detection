@@ -13,6 +13,8 @@ def convert_color_space(image, color_space):
         result = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     elif color_space == 'YCrCb':
         result = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
+    elif color_space == 'LUV':
+        result = cv2.cvtColor(image, cv2.COLOR_BGR2LUV)
     else:
         raise Exception("{} not supported yet.".format(color_space))
     return result

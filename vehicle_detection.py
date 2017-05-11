@@ -1,18 +1,21 @@
 # -*- encoding: utf-8 -*-
 
-import classifier
 import cv2
 import utils
 import features as f
 import matplotlib.pyplot as plt
 import numpy as np
+import pickle
+import settings as s
+from scipy.ndimage.measurements import label
 
 
 class Pipeline(object):
-    def __init__(self, classifier):
+    def __init__(self, classifier, scaler):
         self.classifier = classifier
+        self.scaler = scaler
 
-    def search_for_matches(self, image, region_of_interest=None, scale=1.0, visualize=False, color_space='YCrCb'):
+    def search_for_matches(self, image, region_of_interest=None, scale=1.0, visualize=False):
         """Apply sliding window search on the given image.
         
         :param image: the region which search is imposed on.
@@ -22,8 +25,6 @@ class Pipeline(object):
             `((top-left-x, top-left-y), (bottom-right-x, bottom-right-y))`
         
         :param scale: Searching window scales.
-
-        :param color_space: Color space used for searching
 
         :param visualize: If True, returns a visualizing image.
         """
@@ -38,7 +39,7 @@ class Pipeline(object):
         y_start, y_stop = region_of_interest[0][1], region_of_interest[1][1]
 
         search_region = image[y_start:y_stop, x_start:x_stop, :]
-        search_region = utils.convert_color_space(search_region, color_space)
+        search_region = utils.convert_color_space(search_region, s.color_space)
         print("Shape of search region: ", search_region.shape)
 
         # scaling the input if necessary
@@ -83,9 +84,11 @@ class Pipeline(object):
                 x_tl = xpos * pixels_per_cell
                 y_tl = ypos * pixels_per_cell
                 win_img = search_region[y_tl:y_tl + size_window, x_tl:x_tl + size_window]
-                win_hog = hog_features[ypos:ypos + blocks_per_window, xpos:xpos + blocks_per_window].ravel()
+                win_hog = hog_features[:, ypos:ypos + blocks_per_window, xpos:xpos + blocks_per_window].ravel()
                 features = f.get_feature_vector(win_img, subsampled_hog_features=win_hog)
-                prediction = self.classifier.predict(features)
+
+                scaled_features = self.scaler.transform(features.reshape(1, -1))
+                prediction = self.classifier.predict(scaled_features)
                 if prediction == 1:
                     x_topleft = scale * x_tl
                     y_topleft = scale * y_tl
@@ -102,14 +105,59 @@ class Pipeline(object):
             return rects
 
 
-if __name__ == '__main__':
-    test_img = cv2.imread('test_images/test3.jpg')
+def build_heatmap(size, boxes, threshold=0):
+    heatmap = np.zeros((size[1], size[0]))
+    for ((tl_x, tl_y), (br_x, br_y)) in boxes:
+        heatmap[tl_y:br_y, tl_x:br_x] += 1
+    heatmap[heatmap < threshold] = 0
+    return heatmap
 
-    # clf = classifier.train_classifier(*(classifier.read_samples()))
-    clf = classifier.Classifier.restore('model')
-    pipeline = Pipeline(clf)
-    boxes, img = pipeline.search_for_matches(test_img, region_of_interest=((0, 400), (1280, 656)), scale=1.5,
-                                             color_space='YCrCb',
-                                             visualize=True)
-    plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+
+def label_heatmap_and_get_bounding_box(heatmap):
+    bboxes = []
+    labels = label(heatmap)
+    num = labels[1]
+    for n in range(1, num + 1):
+        nonzero = (labels[0] == n).nonzero()
+        nzx, nzy = np.array(nonzero[1]), np.array(nonzero[0])
+        x1, y1 = np.min(nzx), np.min(nzy)
+        x2, y2 = np.max(nzx), np.max(nzy)
+        bboxes.append(((x1, y1), (x2, y2)))
+    return bboxes
+
+
+def get_image_with_boxes(image, boxes, color=(255, 0, 0), thickness=3):
+    img = np.copy(image)
+    for (p1, p2) in boxes:
+        cv2.rectangle(img, p1, p2, color=color, thickness=thickness)
+    return img
+
+
+if __name__ == '__main__':
+    with open('clf.p', 'rb') as clf_data_file:
+        clf_data = pickle.load(clf_data_file)
+        clf = clf_data['classifier']
+        scaler = clf_data['scaler']
+        clf_data_file.close()
+
+    test_img = cv2.imread('test_images/test5.jpg')
+
+    pipeline = Pipeline(clf, scaler)
+
+    scales = [1.0, 1.5, 2.0]
+    thresholds = [4, 2, 2]
+    heatmap = np.zeros(test_img.shape[:2])
+    for i in range(len(scales)):
+        scale = scales[i]
+        thresh = thresholds[i]
+        boxes, img = pipeline.search_for_matches(test_img, region_of_interest=((0, 400), (1280, 656)), scale=scale,
+                                                 visualize=True)
+        plt.imshow(img)
+        plt.show()
+        hm = build_heatmap((test_img.shape[1], test_img.shape[0]), boxes, threshold=thresh)
+        heatmap += hm
+    bboxes = label_heatmap_and_get_bounding_box(heatmap)
+    img = get_image_with_boxes(test_img, bboxes)
+    img = utils.convert_color_space(img, 'RGB')
+    plt.imshow(img)
     plt.show()
