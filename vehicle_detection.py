@@ -11,6 +11,7 @@ from scipy.ndimage.measurements import label
 
 
 class Pipeline(object):
+    # searching scales
     searching_scales = [1.0, 1.5]
 
     def __init__(self, classifier, scaler):
@@ -18,10 +19,19 @@ class Pipeline(object):
         self.scaler = scaler
         self._last_heatmaps = []
 
-    def search_cars(self, image, region_of_interest=None, sequence=True):
+    def search_cars(self, image, region_of_interest=None, sequence=True, visualize=False):
+        """Search for cars by performing sliding window search.
+        """
+        if visualize:
+            # note: format for visualize_img is BGR
+            visualize_img = np.copy(image)
+
         heatmap = np.zeros(image.shape[:2], dtype=np.float)
         for scale in self.searching_scales:
             boxes = self.search_for_matches(image, region_of_interest=region_of_interest, scale=scale)
+            if visualize:
+                for box in boxes:
+                    cv2.rectangle(visualize_img, box[0], box[1], (255, 0, 0), 3)
             hm = build_heatmap((image.shape[1], image.shape[0]), boxes)
             heatmap += hm
 
@@ -41,7 +51,11 @@ class Pipeline(object):
         # return np.stack((scaled, scaled, scaled), axis=-1).astype(np.uint8)
         bboxes = label_heatmap_and_get_bounding_box(accumulated_heatmap)
         img = get_image_with_boxes(image, bboxes)
-        return img
+
+        if visualize:
+            return img, visualize_img
+        else:
+            return img
 
     def search_for_matches(self, image, region_of_interest=None, scale=1.0, visualize=False):
         """Apply sliding window search on the given image.
@@ -142,6 +156,8 @@ class Pipeline(object):
 
 
 def build_heatmap(size, boxes):
+    """Build heatmap with the specified boxes.
+    """
     heatmap = np.zeros((size[1], size[0]))
     for ((tl_x, tl_y), (br_x, br_y)) in boxes:
         heatmap[tl_y:br_y, tl_x:br_x] += 1
@@ -149,11 +165,14 @@ def build_heatmap(size, boxes):
 
 
 def apply_heatmap_threshold(heatmap, threshold=0):
+    """Applying heatmap value threshold, throwing away heatmap value lower than the threshold specified.
+    """
     heatmap[heatmap < threshold] = 0
     return heatmap
 
 
 def label_heatmap_and_get_bounding_box(heatmap):
+    """Labeling heatmap and returns the bounding boxes for each label."""
     bboxes = []
     labels = label(heatmap)
     num = labels[1]
@@ -167,6 +186,8 @@ def label_heatmap_and_get_bounding_box(heatmap):
 
 
 def get_image_with_boxes(image, boxes, color=(255, 0, 0), thickness=3):
+    """Get a copy of the specified image with boxes drawn on the it.
+    """
     img = np.copy(image)
     for (p1, p2) in boxes:
         cv2.rectangle(img, p1, p2, color=color, thickness=thickness)
@@ -174,6 +195,8 @@ def get_image_with_boxes(image, boxes, color=(255, 0, 0), thickness=3):
 
 
 def constructor_pipeline_from_classifier(pickle_file_name):
+    """Loading classifier from pickled data.
+    """
     with open(pickle_file_name, 'rb') as clf_data_file:
         clf_data = pickle.load(clf_data_file)
         clf = clf_data['classifier']
@@ -204,9 +227,25 @@ if __name__ == '__main__':
     #                                                 visualize=True, scale=2.0)
     #     plt.imshow(result)
     #     plt.show()
-    test_img = cv2.imread('test_images/test4.jpg')
-    boxes, result = pipeline.search_for_matches(test_img, region_of_interest=((0, 400), (1280, 656)),
-                                                visualize=True, scale=1.5)
-    # result = pipeline.search_cars(test_img, region_of_interest=((0, 400), (1280, 656)), sequence=False)
-    plt.imshow(result)
+    # test_img = cv2.imread('test_images/test4.jpg')
+    # # boxes, result = pipeline.search_for_matches(test_img, region_of_interest=((0, 400), (1280, 656)),
+    # #                                             visualize=True, scale=1.5)
+    # img, result = pipeline.search_cars(test_img, region_of_interest=((0, 400), (1280, 656)),
+    #                                    visualize=True)
+    #
+    # # result = pipeline.search_cars(test_img, region_of_interest=((0, 400), (1280, 656)), sequence=False)
+    # plt.imshow(cv2.cvtColor(result, cv2.COLOR_BGR2RGB))
+    # plt.show()
+
+    fig = plt.figure(figsize=(16, 8))
+    subplot = 221
+    for p in ('test_images/test1.jpg', 'test_images/test3.jpg', 'test_images/test4.jpg', 'test_images/test6.jpg'):
+        test_img = cv2.imread(p)
+        img, result = pipeline.search_cars(test_img, region_of_interest=((0, 400), (1280, 656)),
+                                           visualize=True)
+        plt.subplot(subplot)
+        plt.imshow(cv2.cvtColor(result, cv2.COLOR_BGR2RGB))
+        subplot += 1
+    fig.tight_layout()
     plt.show()
+    fig.savefig('output_images/sliding_window_search.png')
