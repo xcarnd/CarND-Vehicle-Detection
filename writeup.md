@@ -31,7 +31,7 @@ You're reading it!
 
 #### 1. Explain how (and identify where in your code) you extracted HOG features from the training images.
 
-The code for this step is contained in lines 9 through 29 of the file called `features.py`).  
+The code for this step is contained in lines 9 through 29 of the file called `features.py`.  
 
 I started by reading in all the `vehicle` and `non-vehicle` images.  Here is an example of one of each of the `vehicle` and `non-vehicle` classes:
 
@@ -47,9 +47,9 @@ Here is an example using the `YCrCb` color space and HOG parameters of `orientat
 
 I tried various combinations of parameters.
 
-I first played with the color space parameter. I've tried RGB, HSL, LUV, YCrCb. Among them LUV/YCrCb gave me the highest test accuracy when training the classifier. When tested with the test images, YCrCb yield fewer false positive. So I finally used YCrCb.
+I first played with the color space parameter. I've tried RGB, HSL, LUV, YCrCb. Among them LUV/YCrCb gave me the highest test accuracy when training the classifier. When tested with the test images, YCrCb yields fewer false positive. So I finally used YCrCb.
 
-After the color space, I tuned the parameters for HOG features extraction. I found using all channels can gave me the highest testing accuracy. Different orientations, pixels_per_cell, cells_per_block did not result in big differences in accuracy. Higher pixels_per_cell/cells_per_block result in less output HOG features and so extraction is faster.
+After the color space, I tuned the parameters for HOG features extraction. I found using all channels can gave me the highest testing accuracy. Different orientations, pixels_per_cell, cells_per_block did not result in big differences in accuracy. Higher pixels_per_cell/cells_per_block usually get a little penalty in accuracy, but also result in less output HOG features and so extraction is faster.
 
 The final choice of parameters of mine are the same as the ones used in video lectures, that is:
 
@@ -81,11 +81,11 @@ Then the data set is split into a training set and a validation set for training
 
 I performed sliding window search with the following step:
 
-    1. Limit the searching area within a region of interests. In practice, I excluded the area where cars would definitely not showing (i.e., above the horizon).
+    i. Limit the searching area within a region of interests. In practice, I excluded the area where cars would definitely not showing (i.e., regions above the horizons).
     
-    2. If scaling is needed, scales the searching area accordingly.
+    ii. If scaling is needed, scales the searching area accordingly.
     
-    3. Perform sliding window search with the scaled search area image.
+    iii. Perform sliding window search with the scaled search area image.
 
 Codes can be found in lines 60 through 155 in `vehicle_detection.py`.
 
@@ -111,7 +111,7 @@ Here's a [link to my video result](./output_images/project_video.mp4)
 
 #### 2. Describe how (and identify where in your code) you implemented some kind of filter for false positives and some method for combining overlapping bounding boxes.
 
-I recorded the positions of positive detections in each frame of the video. From the positive detections I created a heatmap. Heatmaps for the last 5 video frames are kept and then combined into an integrated heatmap. Thresholding is performed on the integrated heatmap to throw away false positive.
+I recorded the positions of positive detections in each frame of the video. From the positive detections I created a heatmap. Heatmaps for the last 5 video frames are kept and then combined into an integrated heatmap. Thresholding is performed on the integrated heatmap to throw away false positives.
 
 I then used `scipy.ndimage.measurements.label()` to identify individual blobs in the integrated heatmap. Each blob is assumed to be corresponded to a vehicle. I constructed bounding boxes to cover the area of each blob detected.
 
