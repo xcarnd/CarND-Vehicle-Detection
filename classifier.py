@@ -15,11 +15,15 @@ import matplotlib.pyplot as plt
 
 
 def extract_feature_vector(image):
+    """Extract feature vector from the given image.
+    """
     ctrans_image = utils.convert_color_space(image, color_space=s.color_space)
     return f.get_feature_vector(ctrans_image)
 
 
 def prepare_features_and_labels(vehicles, non_vehicles):
+    """Prepare features and labels from the given vehicle samples and non-vehicle samples.
+    """
     num_vehicles = len(vehicles)
     num_non_vehicles = len(non_vehicles)
     features_vehicles = [extract_feature_vector(smpl) for smpl in vehicles]
@@ -30,6 +34,8 @@ def prepare_features_and_labels(vehicles, non_vehicles):
 
 
 def train_classifier(features, labels):
+    """Train a LinearSVC with the provided features and labels.
+    """
     train_input, test_input, train_label, test_label = train_test_split(features, labels, test_size=0.2)
 
     print("Shape of training input: ", train_input.shape)
@@ -49,6 +55,8 @@ def train_classifier(features, labels):
 
 
 def create_pickled_dataset():
+    """Read in all the samples and store it in a pickle file for future use.
+    """
     file_check = pathlib.Path("./dataset_bgr.p")
     if file_check.exists():
         return
@@ -74,6 +82,8 @@ def create_pickled_dataset():
 
 
 def load_samples():
+    """Load pickled samples.
+    """
     create_pickled_dataset()
     with open('dataset_bgr.p', 'rb') as f:
         vehicles, non_vehicles = pickle.load(f)
@@ -81,11 +91,10 @@ def load_samples():
 
 
 if __name__ == '__main__':
+    # load samples
     samples_vehicles, samples_non_vehicles = load_samples()
     print("Number of vehicle samples: ", len(samples_vehicles))
     print("Number of non-vehicle samples: ", len(samples_non_vehicles))
-
-    print(extract_feature_vector(samples_vehicles[0]))
 
     print("Preparing feature and label from samples")
     features, labels = prepare_features_and_labels(samples_vehicles, samples_non_vehicles)
@@ -100,11 +109,13 @@ if __name__ == '__main__':
     print("Training classifier")
     clf = train_classifier(scaled_features, labels)
 
-    test_img = cv2.imread('./test5.png')
-    feat_v = extract_feature_vector(test_img)
-    prediction = clf.predict(scaler.transform(feat_v.reshape(1, -1)))
-    print("Prediction: ", prediction)
+    # Test code
+    # test_img = cv2.imread('./test5.png')
+    # feat_v = extract_feature_vector(test_img)
+    # prediction = clf.predict(scaler.transform(feat_v.reshape(1, -1)))
+    # print("Prediction: ", prediction)
 
+    # pickle trained classifier and scaler for future use
     with open('clf.p', 'wb') as clf_data_file:
         pickle.dump({"classifier": clf,
                      "scaler": scaler}, clf_data_file)
