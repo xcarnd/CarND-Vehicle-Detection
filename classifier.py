@@ -104,8 +104,6 @@ if __name__ == '__main__':
     scaler.fit(features)
     scaled_features = scaler.transform(features)
 
-    print(scaled_features[0])
-
     print("Training classifier")
     clf = train_classifier(scaled_features, labels)
 
