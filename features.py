@@ -50,6 +50,8 @@ def get_spatial_binning(image, size=(32, 32)):
 def get_feature_vector(image,
                        subsampled_hog_features=None):
     """Returns features of image as a 1D vector.
+
+    Subsampled HOG features are used directly if provided.
     """
     spatial_binning_features = get_spatial_binning(image, size=s.binning_size)
     hist_features = get_color_hist(image, nbins=s.hist_bins)
