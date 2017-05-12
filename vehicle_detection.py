@@ -30,17 +30,18 @@ class Pipeline(object):
             if len(self._last_heatmaps) > 5:
                 del self._last_heatmaps[0]
             accumulated_heatmap = np.sum(self._last_heatmaps, axis=0, keepdims=False)
-            accumulated_heatmap = apply_heatmap_threshold(accumulated_heatmap, 20)
+            accumulated_heatmap = apply_heatmap_threshold(accumulated_heatmap, 15)
 
             accumulated_heatmap = np.clip(accumulated_heatmap, a_min=0, a_max=255)
         else:
             accumulated_heatmap = heatmap
 
-        max_val = np.max(accumulated_heatmap)
-        scaled = accumulated_heatmap * 255 / max_val
-        return np.stack((scaled, scaled, scaled), axis=-1).astype(np.uint8)
-        # bboxes = label_heatmap_and_get_bounding_box(heatmap)
-        # img = get_image_with_boxes(test_img, bboxes)
+        # max_val = np.max(accumulated_heatmap)
+        # scaled = accumulated_heatmap * 255 / max_val
+        # return np.stack((scaled, scaled, scaled), axis=-1).astype(np.uint8)
+        bboxes = label_heatmap_and_get_bounding_box(accumulated_heatmap)
+        img = get_image_with_boxes(image, bboxes)
+        return img
 
     def search_for_matches(self, image, region_of_interest=None, scale=1.0, visualize=False):
         """Apply sliding window search on the given image.

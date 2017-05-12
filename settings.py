@@ -12,4 +12,4 @@ include_binning = False
 binning_size = (32, 32)
 
 include_hist = True
-hist_bins = 64
+hist_bins = 32
