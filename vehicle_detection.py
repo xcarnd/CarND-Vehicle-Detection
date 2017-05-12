@@ -11,7 +11,7 @@ from scipy.ndimage.measurements import label
 
 
 class Pipeline(object):
-    searching_scales = [1.0, 1.5, 2.0]
+    searching_scales = [1.0, 1.5]
 
     def __init__(self, classifier, scaler):
         self.classifier = classifier
@@ -30,7 +30,7 @@ class Pipeline(object):
             if len(self._last_heatmaps) > 5:
                 del self._last_heatmaps[0]
             accumulated_heatmap = np.sum(self._last_heatmaps, axis=0, keepdims=False)
-            accumulated_heatmap = apply_heatmap_threshold(accumulated_heatmap, 15)
+            accumulated_heatmap = apply_heatmap_threshold(accumulated_heatmap, 5)
 
             accumulated_heatmap = np.clip(accumulated_heatmap, a_min=0, a_max=255)
         else:
@@ -80,20 +80,21 @@ class Pipeline(object):
         # for smaller scale (which is used for searching for "small" car) to the upper part
         # of the search region
         crop = min((0.5 * scale, 1))
-        search_region = search_region[:int(crop*search_region.shape[0]), :]
+        search_region = search_region[:int(crop * search_region.shape[0]), :]
 
-        # parameters tuning:
-        # number of pixels per cell when extracting HOG features
-        pixels_per_cell = 8
         # size (number of pixels) of window
         size_window = 64
-        # number of cells per HOG feature extraction block
-        cells_per_block = 2
+
+        # parameters:
+        pixels_per_cell = s.hog_pixels_per_cell
+        cells_per_block = s.hog_cells_per_block
+        channel = s.hog_channel
+        orientations = s.hog_orientations
 
         # number of blocks per sliding window
         blocks_per_window = (size_window // pixels_per_cell) - cells_per_block + 1
         # cell increments for sliding
-        inc_cells = 2
+        inc_cells = s.sliding_window_cells_increment
 
         # number of (complete) blocks horizontally (along x) / vertically (along y)
         num_blocks_x = (search_region.shape[1] // pixels_per_cell) - cells_per_block + 1
@@ -106,7 +107,8 @@ class Pipeline(object):
         hog_features = f.get_hog(search_region,
                                  pixels_per_cell=pixels_per_cell,
                                  cells_per_block=cells_per_block,
-                                 channel=-1)
+                                 orientations=orientations,
+                                 channel=channel)
 
         # result window rects
         rects = []
@@ -202,3 +204,9 @@ if __name__ == '__main__':
     #                                                 visualize=True, scale=2.0)
     #     plt.imshow(result)
     #     plt.show()
+    test_img = cv2.imread('test_images/test4.jpg')
+    boxes, result = pipeline.search_for_matches(test_img, region_of_interest=((0, 400), (1280, 656)),
+                                                visualize=True, scale=1.5)
+    # result = pipeline.search_cars(test_img, region_of_interest=((0, 400), (1280, 656)), sequence=False)
+    plt.imshow(result)
+    plt.show()
