@@ -20,7 +20,7 @@ class Pipeline(object):
         self._last_heatmaps = []
 
     def search_cars(self, image, region_of_interest=None, sequence=True, visualize=False):
-        """Search for cars by performing sliding window search.
+        """Search for cars by performing sliding window search. Draw bounding boxes around detected vehicles.
         """
         if visualize:
             # note: format for visualize_img is BGR
@@ -203,49 +203,3 @@ def constructor_pipeline_from_classifier(pickle_file_name):
         scaler = clf_data['scaler']
         clf_data_file.close()
     return Pipeline(clf, scaler)
-
-
-if __name__ == '__main__':
-    pipeline = constructor_pipeline_from_classifier("clf.p")
-    # # import os
-    # # frames = os.listdir("debug")
-    # # for frame in frames:
-    # #     test_img = cv2.imread('debug/{}'.format(frame))
-    # #     result = pipeline.search_cars(test_img, region_of_interest=((0, 400), (1280, 656)))
-    # #     cv2.imwrite('debug2/{}'.format(frame), result)
-    # test_img = cv2.imread('debug/frame_020.jpg')
-    # # result = pipeline.search_cars(test_img, region_of_interest=((0, 400), (1280, 656)), sequence=False)
-    # boxes, result = pipeline.search_for_matches(test_img, region_of_interest=((0, 400), (1280, 656)), visualize=True)
-    # plt.imshow(result)
-    # plt.show()
-
-    # import os
-    # frames = os.listdir("debug")
-    # for frame in frames:
-    #     test_img = cv2.imread('debug/{}'.format(frame))
-    #     boxes, result = pipeline.search_for_matches(test_img, region_of_interest=((0, 400), (1280, 656)),
-    #                                                 visualize=True, scale=2.0)
-    #     plt.imshow(result)
-    #     plt.show()
-    # test_img = cv2.imread('test_images/test4.jpg')
-    # # boxes, result = pipeline.search_for_matches(test_img, region_of_interest=((0, 400), (1280, 656)),
-    # #                                             visualize=True, scale=1.5)
-    # img, result = pipeline.search_cars(test_img, region_of_interest=((0, 400), (1280, 656)),
-    #                                    visualize=True)
-    #
-    # # result = pipeline.search_cars(test_img, region_of_interest=((0, 400), (1280, 656)), sequence=False)
-    # plt.imshow(cv2.cvtColor(result, cv2.COLOR_BGR2RGB))
-    # plt.show()
-
-    fig = plt.figure(figsize=(16, 8))
-    subplot = 221
-    for p in ('test_images/test1.jpg', 'test_images/test3.jpg', 'test_images/test4.jpg', 'test_images/test6.jpg'):
-        test_img = cv2.imread(p)
-        img, result = pipeline.search_cars(test_img, region_of_interest=((0, 400), (1280, 656)),
-                                           visualize=True)
-        plt.subplot(subplot)
-        plt.imshow(cv2.cvtColor(result, cv2.COLOR_BGR2RGB))
-        subplot += 1
-    fig.tight_layout()
-    plt.show()
-    fig.savefig('output_images/sliding_window_search.png')
